@@ -16,9 +16,9 @@ ISO_DIR = iso
 INLCUDE_DIR = include
 LOG_FILE = hypervisor.log
 
-
-ENTRYPOINT_ASM = entrypoint.asm
-OBJ_FILES = $(OBJDIR)/entrypoint.o
+ASM_FILES = $(wildcard $(SRC_DIR)/**/*.asm) $(wildcard $(SRC_DIR)/*.asm)
+C_FILES = $(wildcard $(SRC_DIR)/**/*.c)
+OBJ_FILES = $(patsubst $(SRC_DIR)/%.c,$(OBJDIR)/%.o,$(C_FILES)) $(patsubst $(SRC_DIR)/%.asm,$(OBJDIR)/%.o,$(ASM_FILES))
 
 
 all: $(OBJDIR)/hypervisor.iso
@@ -38,7 +38,8 @@ $(OBJDIR)/hypervisor.iso: $(OBJDIR)/hypervisor.so $(ISO_DIR)/boot/grub/grub.cfg
 	grub-mkrescue -o $@ $(ISO_DIR)
 
 clean:
-	rm -r $(OBJDIR)
-	mkdir $(OBJDIR)
+	rm $(OBJ_FILES)
+	rm $(OBJDIR)/hypervisor.so
+	rm $(OBJDIR)/hypervisor.iso
 	rm $(ISO_DIR)/boot/hypervisor.so
 	rm $(LOG_FILE)

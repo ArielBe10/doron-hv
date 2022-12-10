@@ -2,6 +2,7 @@ SECTIONS
 {
     /* match the CODE_BEGIN_ADDRESS from entrypoint.asm */
     . = 0x33000;
+    .multiboot : { *(.multiboot) }
     .text : { *(.text) }
     .data : { *(.data) } 
     .bss : { *(.bss) }

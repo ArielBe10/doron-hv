@@ -1,8 +1,7 @@
 %define MULTIBOOT_MAGIC 0xE85250D6
 %define CODE_BEGIN_ADDRESS 0x33000
 
-[bits 32]
-segment .text
+segment .multiboot
 
 multiboot2_header_start:
     .magic          dd  MULTIBOOT_MAGIC
@@ -32,6 +31,20 @@ multiboot2_header_start:
         dw 8
 multiboot2_header_end:
 
+[bits 32]
+segment .text 
+
+%include "src/boot/hello_world.asm"
+extern pm_print
 
 _start:
+
+    mov esp, 0x2800000
+
+    push message 
+    call pm_print
+
     jmp short $ 
+
+message:
+    db "hello world", 0
