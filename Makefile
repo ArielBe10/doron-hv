@@ -7,7 +7,7 @@ ASSEMBLER = nasm
 ASSEMBLER_FLAGS = -f elf64
 
 C_COMPILER = gcc
-C_COMPILER_FLAGS = -nostdlib -c 
+C_COMPILER_FLAGS = -I ./include -nostdlib -c -Werror -Wall -mno-red-zone -ffreestanding -mno-red-zone -g
 
 
 SRC_DIR = src
@@ -16,13 +16,18 @@ ISO_DIR = iso
 INLCUDE_DIR = include
 LOG_FILE = hypervisor.log
 
-ASM_FILES = $(wildcard $(SRC_DIR)/**/*.asm) $(wildcard $(SRC_DIR)/*.asm)
+ASM_FILES = $(find src/**/*.asm -not -path "$(SRC_DIR)/boot/*.asm")
 C_FILES = $(wildcard $(SRC_DIR)/**/*.c)
-OBJ_FILES = $(patsubst $(SRC_DIR)/%.c,$(OBJDIR)/%.o,$(C_FILES)) $(patsubst $(SRC_DIR)/%.asm,$(OBJDIR)/%.o,$(ASM_FILES))
+OBJ_FILES = $(patsubst $(SRC_DIR)/%.c,$(OBJDIR)/%.o,$(C_FILES)) \
+			$(patsubst $(SRC_DIR)/%.asm,$(OBJDIR)/%.o,$(ASM_FILES)) \
+			$(OBJDIR)/boot/entrypoint.o
 
 
 all: $(OBJDIR)/hypervisor.iso
 
+
+$(OBJDIR)/boot/entrypoint.o: $(wildcard $(SRC_DIR)/boot/*.asm)
+	$(ASSEMBLER) $(ASSEMBLER_FLAGS) $(SRC_DIR)/boot/entrypoint.asm -o $@
 
 $(OBJDIR)/%.o : $(SRC_DIR)/%.c
 	$(C_COMPILER) $(C_COMPILER_FLAGS) $< -o $@
@@ -37,9 +42,8 @@ $(OBJDIR)/hypervisor.iso: $(OBJDIR)/hypervisor.so $(ISO_DIR)/boot/grub/grub.cfg
 	cp $< $(ISO_DIR)/boot/$(notdir $<)
 	grub-mkrescue -o $@ $(ISO_DIR)
 
+
+.PHONY: clean all
+
 clean:
-	rm $(OBJ_FILES)
-	rm $(OBJDIR)/hypervisor.so
-	rm $(OBJDIR)/hypervisor.iso
-	rm $(ISO_DIR)/boot/hypervisor.so
-	rm $(LOG_FILE)
+	rm -f $(OBJ_FILES) $(OBJDIR)/hypervisor.so $(OBJDIR)/hypervisor.iso $(ISO_DIR)/boot/hypervisor.so $(LOG_FILE)
