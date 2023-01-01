@@ -1,4 +1,4 @@
-%define STACK_START_ADDRESS 0x2800000
+%define STACK_START_ADDRESS 0x2800
 %define PAGING_STRUCTS_ADDRESS 0x100000
 %define PAGING_PDPT_ENTRY_COUNT 16
 %define PAGING_DEFAULT_FLAGS 0x3    ; rwx present
@@ -8,12 +8,13 @@
 
 extern vmm_main
 
-segment .data
+section .data
 %include "src/boot/gdt.asm"
 
-[bits 32]
-segment .text 
+section .text 
+%include "src/boot/switch_modes.asm"
 
+[bits 32]
 ; Create a paging table
 ; params:
 ;   eax: where the table entries should point to: eax, eax+0x1000, ...
@@ -33,6 +34,19 @@ create_paging_tables:
 
 _start:
     mov esp, STACK_START_ADDRESS
+
+    lgdt [gdt_descriptor]
+    jmp CODESEG32:.reset_codeseg32
+
+.reset_codeseg32:
+
+    mov eax, DATASEG32
+    mov ds, eax
+    mov es, eax
+    mov fs, eax
+    mov gs, eax
+    mov ss, eax
+    call enter_real_mode
 
     ; create pml4t entry
     mov ebx, PAGING_STRUCTS_ADDRESS
@@ -86,14 +100,13 @@ _start:
     mov cr0, eax
     
     ; switched to compatibility mode 
-    lgdt [gdt_descriptor]
-    jmp CODESEG:long_mode_entry
+    jmp CODESEG64:.reset_codeseg64
     
 
 [bits 64]
-long_mode_entry:
+.reset_codeseg64:
     cli
-    mov ax, DATASEG
+    mov ax, DATASEG64
     mov ds, ax
     mov es, ax
     mov fs, ax
@@ -103,5 +116,5 @@ long_mode_entry:
     call vmm_main
 
 
-segment .multiboot
+section .multiboot
 %include "src/boot/multiboot.asm"

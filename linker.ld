@@ -1,7 +1,7 @@
 SECTIONS
 {
-    /* match the CODE_BEGIN_ADDRESS from src/boot/multiboot.asm */
-    . = 0x330000;
+    /* match the CODE_START_ADDRESS from src/boot/multiboot.asm */
+    . = 0x3300;
     .multiboot : { *(.multiboot) }
     .text : { *(.text) }
     .data : { *(.data) } 
