@@ -4,3 +4,4 @@
 *.iso
 .gdbinit
 .vscode
+*.log

@@ -7,4 +7,5 @@ LOGFILE="${PROJECT_DIR}/hypervisor.log"
 
 qemu-system-x86_64 -cdrom "$IMAGE" -s -S \
         -chardev stdio,id=char0,logfile="$LOGFILE",signal=off \
-        -serial chardev:char0
+        -serial chardev:char0 \
+        -no-reboot
