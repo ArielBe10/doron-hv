@@ -50,4 +50,38 @@ setup_paging:
     mov edi, LARGE_PAGE_SIZE
     call create_paging_tables
 
+.enter_long_mode:
+    cli
+	; disable paging
+    mov eax, cr0
+    and eax, ~(1 << 31)
+    mov cr0, eax
+
+    ; enable PAE
+    mov eax, cr4
+    or eax, (1 << 5)
+    mov cr4, eax
+
+    ; set LME (long mode enable)
+    mov ecx, EFER_MSR
+    rdmsr   ; value is stored in EDX:EAX
+    or eax, (1 << 8)
+    wrmsr
+
+    ; set cr3 to pml4t
+    mov eax, PAGING_STRUCTS_ADDRESS
+    mov cr3, eax
+
+    ; enable paging
+    mov eax, cr0
+    or eax, (1 << 31)
+    mov cr0, eax
+    
+    ; switched to compatibility mode 
+    jmp CODESEG64:.reset_codeseg64
+    
+[bits 64]
+.reset_codeseg64:
+    SET_SELECTORS DATASEG64
+
     ret

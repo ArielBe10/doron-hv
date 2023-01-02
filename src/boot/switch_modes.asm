@@ -1,5 +1,3 @@
-%define EFER_MSR	0xC0000080
-
 [bits 32]
 real_mode_idt:
 	dw 0x3ff		; 256 entries, 4b each = 1K
@@ -7,19 +5,19 @@ real_mode_idt:
 
 enter_real_mode:
 	cli
-    jmp CODESEG16:.reset_codeseg16
+    jmp CODESEG16:REAL_MODE_OFFSET(.reset_codeseg16)
 
 [bits 16]
 .reset_codeseg16:
     SET_SELECTORS DATASEG16
-	lidt [real_mode_idt]
+	lidt [REAL_MODE_OFFSET(real_mode_idt)]
 
     ; disable protected mode (PE) flag of cr0
 	mov eax, cr0
 	and eax, ~1
 	mov cr0, eax
  
-	jmp 0:.reset_codeseg_real_mode   ; far jump to set cs
+	jmp 0:REAL_MODE_OFFSET(.reset_codeseg_real_mode)   ; far jump to set cs
 
 .reset_codeseg_real_mode:
     ; reset segment selectors
@@ -35,7 +33,7 @@ enter_protected_mode:
 	or eax, 1
 	mov cr0, eax
 
-	jmp CODESEG32:.reset_codeseg32
+	jmp CODESEG32:REAL_MODE_OFFSET(.reset_codeseg32)
 
 [bits 32]
 .reset_codeseg32:
@@ -77,7 +75,7 @@ enter_long_mode:
     mov cr0, eax
     
     ; switched to compatibility mode 
-    jmp CODESEG64:.reset_codeseg64
+    jmp CODESEG64:REAL_MODE_OFFSET(.reset_codeseg64)
     
 
 [bits 64]
@@ -114,7 +112,7 @@ switch_back_to_protected_mode:	; from long mode
 
     ; far jumps are not allowed in long mode, so use far return instead
     push CODESEG32
-    push .reset_codeseg32
+    push REAL_MODE_OFFSET(.reset_codeseg32)
     retf    
 
 [bits 32]
