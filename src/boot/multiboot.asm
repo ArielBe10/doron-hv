@@ -1,5 +1,4 @@
 %define MULTIBOOT_MAGIC 0xE85250D6
-%define CODE_START_ADDRESS 0x3300
 
 multiboot2_header_start:
     .magic          dd  MULTIBOOT_MAGIC
