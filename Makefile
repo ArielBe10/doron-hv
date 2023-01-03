@@ -16,24 +16,20 @@ ISO_DIR = iso
 INLCUDE_DIR = include
 LOG_FILE = hypervisor.log
 
-ASM_FILES = $(find src/**/*.asm -not -path "$(SRC_DIR)/boot/*.asm")
+ASM_FILES = $(wildcard $(SRC_DIR)/**/*.asm)
 C_FILES = $(wildcard $(SRC_DIR)/**/*.c)
 OBJ_FILES = $(patsubst $(SRC_DIR)/%.c,$(OBJDIR)/%.o,$(C_FILES)) \
-			$(patsubst $(SRC_DIR)/%.asm,$(OBJDIR)/%.o,$(ASM_FILES)) \
 			$(OBJDIR)/boot/entrypoint.o
 
 
 all: $(OBJDIR)/hypervisor.iso
 
 
-$(OBJDIR)/boot/entrypoint.o: $(wildcard $(SRC_DIR)/boot/*.asm)
+$(OBJDIR)/boot/entrypoint.o: $(ASM_FILES)
 	$(ASSEMBLER) $(ASSEMBLER_FLAGS) $(SRC_DIR)/boot/entrypoint.asm -o $@
 
 $(OBJDIR)/%.o : $(SRC_DIR)/%.c
 	$(C_COMPILER) $(C_COMPILER_FLAGS) $< -o $@
-
-$(OBJDIR)/%.o : $(SRC_DIR)/%.asm
-	$(ASSEMBLER) $(ASSEMBLER_FLAGS) $< -o $@
 
 $(OBJDIR)/hypervisor.so: $(OBJ_FILES)
 	$(LINKER) $(LINKER_FLAGS) $(OBJ_FILES) -o $@

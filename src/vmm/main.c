@@ -1,26 +1,24 @@
 #include "lib/logging.h"
-#include "lib/string.h"
+#include "vmm/init_bios.h"
 
-#define REAL_MODE_CODE_START_ADDRESS 0x3000
-
-extern void real_mode_code_start_offset(void);
-extern void real_mode_code_end_offset(void);
-
-void copy_real_mode_code();
-
-void copy_real_mode_code()
+void exit(void)
 {
-    char *code_src_address = (char *)real_mode_code_start_offset;
-    char *code_dst_address = (char *)REAL_MODE_CODE_START_ADDRESS;
-    int code_length = real_mode_code_end_offset - real_mode_code_start_offset;
-
-    DEBUG("copying real mode code: src=0x%p, dst=0x%p, length=0x%p", code_src_address, code_dst_address, code_length);
-    memcpy(code_dst_address, code_src_address, code_length);
+    asm("cli; hlt;");
 }
 
 void vmm_main()
 {
     init_logging(DEBUG_LEVEL);
-    INFO("hello world");
-    copy_real_mode_code();
+    INFO("starting vmm_main");
+
+    init_bios();
+
+    // mmap size is unknown
+    int buffer[0x100];
+    e820_mmap_t *e820_mmap = (e820_mmap_t *)buffer;
+    get_e820_mmap(e820_mmap);
+    print_e820_mmap(e820_mmap);
+
+    INFO("finished vmm_main");
+    exit();
 }

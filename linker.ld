@@ -1,6 +1,6 @@
 SECTIONS
 {
-    /* match the CODE_START_ADDRESS from src/boot/multiboot.asm */
+    /* match the CODE_START_ADDRESS from src/boot/macros.asm */
     . = 0x3300000;
     .multiboot : { *(.multiboot) }
     .text : { *(.text) }
