@@ -4,10 +4,8 @@
 
 typedef struct
 {
-    uint32_t base_low;
-    uint32_t base_high;
-    uint32_t length_low;
-    uint32_t length_high;
+    uint64_t base;
+    uint64_t length;
     uint32_t type;
     uint32_t attributes;
 } __attribute__((packed)) e820_mmap_entry_t;

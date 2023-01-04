@@ -33,10 +33,10 @@ void get_e820_mmap(e820_mmap_t *mmap_output)
 void print_e820_mmap(e820_mmap_t *mmap)
 {
     DEBUG("mmap count: %d", mmap->count);
-    DEBUG("base_address     length           type     attributes");
+    DEBUG("base             length           type             attributes");
     for (int i = 0; i < mmap->count; i++)
     {
         e820_mmap_entry_t entry = mmap->entries[i];
-        DEBUG("%p%p %p%p %p %p", entry.base_high, entry.base_low, entry.length_high, entry.length_low, entry.type, entry.attributes);
+        DEBUG("%p %p %p %p", entry.base, entry.length, entry.type, entry.attributes);
     }
 }

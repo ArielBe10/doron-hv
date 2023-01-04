@@ -16,14 +16,14 @@ char *get_nonzero_start(const char *str)
     return (char *)str;
 }
 
-void sprint_unsigned(char *dst, unsigned int number, int base)
+void sprint_unsigned(char *dst, uint64_t number, int base)
 {
     if (base > 16)
     {
         dst[0] = '\0';
         return;
     }
-    char tmp_str[20];
+    char tmp_str[20]; // max str length is 16 (64 bits = 8 bytes = 16 hexdigits)
     tmp_str[19] = '\0';
 
     for (int index = 18; index >= 0; index--)
@@ -34,7 +34,7 @@ void sprint_unsigned(char *dst, unsigned int number, int base)
     strcpy(dst, get_nonzero_start(tmp_str));
 }
 
-void sprint_signed(char *dst, int number, int base)
+void sprint_signed(char *dst, int64_t number, int base)
 {
     if (number < 0)
     {
@@ -86,8 +86,8 @@ void sprintf(char *dst, const char *fmt, ...)
 
 void vsprintf(char *dst, const char *fmt, va_list argp)
 {
-    int signed_number;
-    unsigned int unsigned_number;
+    int64_t signed_number;
+    uint64_t unsigned_number;
     char c, *s;
 
     for (; *fmt != '\0'; fmt++)
@@ -112,29 +112,29 @@ void vsprintf(char *dst, const char *fmt, va_list argp)
                 dst += strlen(s);
                 break;
             case 'x':
-                signed_number = va_arg(argp, int);
+                signed_number = va_arg(argp, int64_t);
                 sprint_signed(dst, signed_number, 16);
                 dst += strlen(dst);
                 break;
             case 'd':
-                signed_number = va_arg(argp, int);
+                signed_number = va_arg(argp, int64_t);
                 sprint_signed(dst, signed_number, 10);
                 dst += strlen(dst);
                 break;
             case 'b':
-                signed_number = va_arg(argp, int);
+                signed_number = va_arg(argp, int64_t);
                 sprint_signed(dst, signed_number, 2);
                 dst += strlen(dst);
                 break;
             case 'o':
-                signed_number = va_arg(argp, int);
+                signed_number = va_arg(argp, int64_t);
                 sprint_signed(dst, signed_number, 8);
                 dst += strlen(dst);
                 break;
             case 'p':
-                unsigned_number = va_arg(argp, unsigned int);
+                unsigned_number = va_arg(argp, uint64_t);
                 sprint_unsigned(dst, unsigned_number, 16);
-                left_padding(dst, 8, '0');
+                left_padding(dst, 16, '0');
                 dst += strlen(dst);
                 break;
             default:
