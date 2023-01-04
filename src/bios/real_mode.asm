@@ -2,6 +2,7 @@ global real_mode_code_start_offset
 global real_mode_code_end_offset
 global call_real_mode_function_wrapper
 global bios_mmap
+global bios_read_disk
 
 [bits 64]
 ; call real mode function using an absolute call (functions are in lower memory)
@@ -25,5 +26,6 @@ real_mode_code_start_offset:
 %include "src/bios/switch_modes.asm"
 %include "src/bios/mmap.asm"
 %include "src/bios/bios_print.asm"
+%include "src/bios/read_disk.asm"
 
 real_mode_code_end_offset:

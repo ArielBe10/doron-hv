@@ -13,22 +13,27 @@ C_COMPILER_FLAGS = -I ./include -nostdlib -c -Werror -Wall -mno-red-zone -ffrees
 SRC_DIR = src
 OBJDIR = build
 ISO_DIR = iso
-INLCUDE_DIR = include
+INCLUDE_DIR = include
 LOG_FILE = hypervisor.log
 
+ASM_ENTRY_FILE = $(SRC_DIR)/boot/entrypoint.asm
 ASM_FILES = $(wildcard $(SRC_DIR)/**/*.asm)
+ASM_OBJ_FILE = $(OBJDIR)/boot/entrypoint.o
+
 C_FILES = $(wildcard $(SRC_DIR)/**/*.c)
-OBJ_FILES = $(patsubst $(SRC_DIR)/%.c,$(OBJDIR)/%.o,$(C_FILES)) \
-			$(OBJDIR)/boot/entrypoint.o
+HEADER_FILES = $(wildcard $(INCLUDE_DIR)/**/*.h)
+C_OBJ_FILES = $(patsubst $(SRC_DIR)/%.c,$(OBJDIR)/%.o,$(C_FILES))
+
+OBJ_FILES = $(C_OBJ_FILES) $(ASM_OBJ_FILE)
 
 
 all: $(OBJDIR)/hypervisor.iso
 
 
-$(OBJDIR)/boot/entrypoint.o: $(ASM_FILES)
-	$(ASSEMBLER) $(ASSEMBLER_FLAGS) $(SRC_DIR)/boot/entrypoint.asm -o $@
+$(ASM_OBJ_FILE): $(ASM_FILES)
+	$(ASSEMBLER) $(ASSEMBLER_FLAGS) $(ASM_ENTRY_FILE) -o $@
 
-$(OBJDIR)/%.o : $(SRC_DIR)/%.c
+$(C_OBJ_FILES): $(OBJDIR)/%.o: $(SRC_DIR)/%.c $(HEADER_FILES)
 	$(C_COMPILER) $(C_COMPILER_FLAGS) $< -o $@
 
 $(OBJDIR)/hypervisor.so: $(OBJ_FILES)

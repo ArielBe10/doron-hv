@@ -5,3 +5,4 @@
 .gdbinit
 .vscode
 *.log
+*.hd
