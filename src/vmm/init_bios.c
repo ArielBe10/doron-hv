@@ -32,7 +32,7 @@ void get_e820_mmap(e820_mmap_t *mmap_output)
     memcpy(mmap_output, mmap, length);
 }
 
-void print_e820_mmap(e820_mmap_t *mmap)
+void print_e820_mmap(const e820_mmap_t *mmap)
 {
     DEBUG("mmap count: %d", mmap->count);
     DEBUG("base             length           type             attributes");

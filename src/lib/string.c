@@ -29,10 +29,11 @@ int strlen(const char *string)
 void strcpy(char *dst, const char *src)
 {
     int length = strlen(src);
-    for (int i = 0; i <= length; i++)
+    for (int i = 0; i < length; i++)
     {
         dst[i] = src[i];
     }
+    dst[length] = '\0';
 }
 
 char strcmp(const char *str1, const char *str2)
