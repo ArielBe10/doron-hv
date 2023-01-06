@@ -12,6 +12,16 @@
         __asm__("cli; hlt");           \
     } while (0)
 
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
+
+#define ASSERT(condition)              \
+    do                                 \
+    {                                  \
+        if (!(condition))              \
+            PANIC("assertion failed: " STR(condition)); \
+    } while (0)
+
 typedef enum
 {
     DEBUG_LEVEL = 0,
