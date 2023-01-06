@@ -2,6 +2,7 @@
 #include "lib/string.h"
 #include "vmm/init_bios.h"
 #include "vmm/kheap.h"
+#include "vmm/vmm.h"
 
 void exit(void)
 {
@@ -31,11 +32,7 @@ void vmm_main()
     read_disk(&dap);
 
     kheap_metadata_t kheap = setup_kheap(e820_mmap, 0x10000);
-    char *buffer = kmalloc(&kheap, 0x100);
-
-    strcpy(buffer, "abc");
-    strcat(buffer, "def");
-    INFO("%s", buffer);
+    enter_vmx(&kheap);
 
     INFO("finished vmm_main");
     exit();
