@@ -2,7 +2,6 @@
 *.so
 *.elf
 *.iso
-.gdbinit
 .vscode
 *.log
 *.hd
