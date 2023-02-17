@@ -4,17 +4,19 @@
 
 static inline void wrmsr(uint32_t msr_id, uint64_t msr_value)
 {
+    uint32_t msr_value_low = msr_value & 0xffffffff, msr_value_high = msr_value >> 32;
     asm volatile("wrmsr"
                  :
-                 : "c"(msr_id), "A"(msr_value));
+                 : "c"(msr_id), "d"(msr_value_high), "a"(msr_value_low));
 }
 
 static inline uint64_t rdmsr(uint32_t msr_id)
 {
-    uint64_t msr_value;
+    uint32_t msr_value_high, msr_value_low;
     asm volatile("rdmsr"
-                 : "=A"(msr_value)
+                 : "=d"(msr_value_high), "=a"(msr_value_low)
                  : "c"(msr_id));
+    uint64_t msr_value = (((uint64_t)msr_value_high) << 32) | msr_value_low;
     return msr_value;
 }
 
