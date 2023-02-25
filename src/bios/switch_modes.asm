@@ -99,17 +99,6 @@ switch_back_to_protected_mode:	; from long mode
     and eax, ~(1 << 31)
     mov cr0, eax
 
-	; disable PAE
-    mov eax, cr4
-    and eax, ~(1 << 5)
-    mov cr4, eax
-
-    ; unset LME (long mode enable)
-    mov ecx, EFER_MSR
-    rdmsr   ; value is stored in EDX:EAX
-    and eax, ~(1 << 8)
-    wrmsr
-
     ; far jumps are not allowed in long mode, so use far return instead
     push CODESEG32
     push REAL_MODE_OFFSET(.reset_codeseg32)
@@ -117,6 +106,17 @@ switch_back_to_protected_mode:	; from long mode
 
 [bits 32]
 .reset_codeseg32:
+    ; unset LME (long mode enable)
+    mov ecx, EFER_MSR
+    rdmsr   ; value is stored in EDX:EAX
+    and eax, ~(1 << 8)
+    wrmsr
+
+	; disable PAE
+    mov eax, cr4
+    and eax, ~(1 << 5)
+    mov cr4, eax
+
     SET_SELECTORS DATASEG32
 	ret 4   ; since called from 64 bit code, remove the trailing zeros of the 8 byte address pushed
 

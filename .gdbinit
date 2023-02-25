@@ -7,5 +7,5 @@ define hook-stop
 x/4i $rip
 end
 
-b _start
+hb _start
 c
