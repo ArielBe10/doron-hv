@@ -1,4 +1,4 @@
-#include "vmm/init_bios.h"
+#include "vmm/bios.h"
 #include "lib/logging.h"
 #include "lib/string.h"
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vmm/init_bios.h"
+#include "vmm/bios.h"
 #include <stdint.h>
 
 #define ALIGNED_DOWN(addr, align) (((addr) / (align)) * (align))

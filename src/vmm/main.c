@@ -1,8 +1,9 @@
 #include "lib/logging.h"
 #include "lib/string.h"
-#include "vmm/init_bios.h"
+#include "vmm/bios.h"
 #include "vmm/kheap.h"
 #include "vmm/vmm.h"
+#include "vmm/state.h"
 
 void exit(void)
 {
@@ -32,7 +33,10 @@ void vmm_main()
     read_disk(&dap);
 
     kheap_metadata_t kheap = setup_kheap(e820_mmap, 0x10000);
-    enter_vmx(&kheap);
+    shared_cpu_state_t *shared_cpu_state = create_cpu_states(&kheap);
+    INFO("shared cpu state created: %p", shared_cpu_state);
+
+    // enter_vmx(&kheap);
 
     INFO("finished vmm_main");
     exit();
