@@ -34,9 +34,9 @@ void vmm_main()
 
     kheap_metadata_t kheap = setup_kheap(e820_mmap, 0x10000);
     shared_cpu_state_t *shared_cpu_state = create_cpu_states(&kheap);
-    INFO("shared cpu state created: %p", shared_cpu_state);
+    configure_cpu_states(shared_cpu_state);
 
-    // enter_vmx(&kheap);
+    enter_vmx(&kheap, shared_cpu_state->single_cpu_states[0]);
 
     INFO("finished vmm_main");
     exit();

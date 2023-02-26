@@ -99,3 +99,72 @@ static inline void cpuid(uint64_t eax, uint64_t ecx, uint64_t *eax_out, uint64_t
                  : "=a"(*eax_out), "=b"(*ebx_out), "=c"(*ecx_out), "=d"(*edx_out)
                  : "a"(eax), "c"(ecx));
 }
+
+static inline uint16_t get_cs(void)
+{
+    uint16_t cs;
+    asm volatile("mov %%cs, %0": "=r"(cs));
+    return cs;
+}
+
+static inline uint16_t get_ds(void)
+{
+    uint16_t ds;
+    asm volatile("mov %%ds, %0": "=r"(ds));
+    return ds;
+}
+
+static inline uint16_t get_ss(void)
+{
+    uint16_t ss;
+    asm volatile("mov %%ss, %0": "=r"(ss));
+    return ss;
+}
+
+static inline uint16_t get_es(void)
+{
+    uint16_t es;
+    asm volatile("mov %%es, %0": "=r"(es));
+    return es;
+}
+
+static inline uint16_t get_fs(void)
+{
+    uint16_t fs;
+    asm volatile("mov %%fs, %0": "=r"(fs));
+    return fs;
+}
+
+static inline uint16_t get_gs(void)
+{
+    uint16_t gs;
+    asm volatile("mov %%gs, %0": "=r"(gs));
+    return gs;
+}
+
+typedef struct
+{
+    uint16_t limit;
+    uint64_t address;
+} __attribute__((__packed__)) gdtr_t;
+
+typedef struct
+{
+    uint16_t limit;
+    uint64_t address;
+} __attribute__((__packed__)) idtr_t;
+
+
+static inline gdtr_t get_gdtr(void)
+{
+    gdtr_t gdtr = {.address = 0, .limit = 0};
+    asm volatile("sgdt %0"::"m"(gdtr));
+    return gdtr;
+}
+
+static inline idtr_t get_idtr(void)
+{
+    idtr_t idtr = {.address = 0, .limit = 0};
+    asm volatile("sidt %0"::"m"(idtr));
+    return idtr;
+}

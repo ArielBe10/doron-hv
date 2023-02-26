@@ -2,6 +2,8 @@
 
 #include "hardware/rsdp.h"
 #include "lib/logging.h"
+#include "hardware/registers.h"
+#include "lib/string.h"
 
 
 shared_cpu_state_t *create_cpu_states(kheap_metadata_t *kheap) {
@@ -30,4 +32,13 @@ shared_cpu_state_t *create_cpu_states(kheap_metadata_t *kheap) {
     }
 
     return shared_cpu_state;
+}
+
+
+void configure_cpu_states(shared_cpu_state_t *shared_states) {
+    for (int i = 0; i < shared_states->cpu_count; i++) {
+        single_cpu_state_t *state = shared_states->single_cpu_states[i];
+        gdtr_t gdtr = get_gdtr();
+        memcpy(&state->gdt, (void *)gdtr.address, gdtr.limit + 1);
+    }
 }

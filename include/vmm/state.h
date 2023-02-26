@@ -37,4 +37,4 @@ struct _shared_cpu_state_t {
 
 
 shared_cpu_state_t *create_cpu_states(kheap_metadata_t *kheap);
-
+void configure_cpu_states(shared_cpu_state_t *shared_states);
