@@ -6,7 +6,7 @@
 #include "lib/string.h"
 
 
-shared_cpu_state_t *create_cpu_states(kheap_metadata_t *kheap) {
+cpu_shared_data_t *create_cpu_data(kheap_metadata_t *kheap) {
     // get cpu count and cpu ids
     int cpu_count;
     rsdp_descriptor_v2_t *rsdp = find_rsdp();
@@ -18,27 +18,24 @@ shared_cpu_state_t *create_cpu_states(kheap_metadata_t *kheap) {
     uint8_t *cpu_ids = kmalloc(kheap, cpu_count);
     get_cpu_ids(madt, cpu_ids);
 
-    // shared cpu state contains array of pointers to single cpu states
-    shared_cpu_state_t *shared_cpu_state = kmalloc(kheap, sizeof(shared_cpu_state_t) + cpu_count * sizeof(single_cpu_state_t *));
-    shared_cpu_state->cpu_count = cpu_count;
+    // shared data contains array of pointers to cpu states
+    cpu_shared_data_t *shared_data = kmalloc(kheap, sizeof(cpu_shared_data_t) + cpu_count * sizeof(cpu_state_t *));
+    shared_data->cpu_count = cpu_count;
     
     for (int i = 0; i < cpu_count; i++) {
-        single_cpu_state_t *single_cpu_state = kmalloc_aligned(kheap, sizeof(single_cpu_state_t), 0x1000);
-        // link shared and single cpu states
-        shared_cpu_state->single_cpu_states[i] = single_cpu_state;
-        single_cpu_state->shared_cpu_state = shared_cpu_state;
-
-        single_cpu_state->cpu_id = cpu_ids[i];
+        cpu_state_t *state = kmalloc(kheap, sizeof(cpu_state_t));
+        // link shared data cpu states
+        state->cpu_data = kmalloc_aligned(kheap, sizeof(cpu_data_t), 0x1000);
+        state->cpu_data->cpu_id = cpu_ids[i];
+        state->cpu_data->shared_data = shared_data;
+        shared_data->cpu_states[i] = state;
     }
 
-    return shared_cpu_state;
+    return shared_data;
 }
 
 
-void configure_cpu_states(shared_cpu_state_t *shared_states) {
-    for (int i = 0; i < shared_states->cpu_count; i++) {
-        single_cpu_state_t *state = shared_states->single_cpu_states[i];
-        gdtr_t gdtr = get_gdtr();
-        memcpy(&state->gdt, (void *)gdtr.address, gdtr.limit + 1);
-    }
+void set_cpu_data(cpu_shared_data_t *shared_data) {
+    gdtr_t gdtr = get_gdtr();
+    memcpy(&shared_data->gdt, (void *)gdtr.address, gdtr.limit + 1);
 }

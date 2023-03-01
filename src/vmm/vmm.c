@@ -26,22 +26,25 @@
 #define VMCS_TSS_AR 0xc08b  // not present 
 #define VMCS_SELECTOR_UNUSABLE (1 << 16)
 
+extern void __vmexit_handler(void);
+extern void __vmlaunch_handler(void);
+
 
 typedef enum {
-    CPU_STATE_ACTIVE = 0,
-    CPU_STATE_HLT = 1,
-    CPU_STATE_SHUTDOWN = 2,
-    CPU_STATE_WAIT_FOR_SIPI = 3
-} cpu_state_t;
+    CPU_STATUS_ACTIVE = 0,
+    CPU_STATUS_HLT = 1,
+    CPU_STATUS_SHUTDOWN = 2,
+    CPU_STATUS_WAIT_FOR_SIPI = 3
+} cpu_status_t;
 
 
-void enter_vmx(kheap_metadata_t *kheap, single_cpu_state_t *state)
+void enter_vmx(kheap_metadata_t *kheap, cpu_state_t *state)
 {
     INFO("entering vmx");
 
-    memset(state->vmcs, 0, sizeof(state->vmcs));
-    *(uint32_t *)state->vmcs = rdmsr(MSR_IA32_VMX_BASIC);
-    *(uint32_t *)state->vmxon = rdmsr(MSR_IA32_VMX_BASIC);
+    memset(state->cpu_data->vmcs, 0, sizeof(state->cpu_data->vmcs));
+    *(uint32_t *)state->cpu_data->vmcs = rdmsr(MSR_IA32_VMX_BASIC);
+    *(uint32_t *)state->cpu_data->vmxon = rdmsr(MSR_IA32_VMX_BASIC);
 
     uint64_t msr_feature_control = rdmsr(MSR_IA32_FEATURE_CONTROL);
     if (msr_feature_control & MSR_IA32_FEATURE_CONTROL_LOCK_BIT) {
@@ -58,25 +61,24 @@ void enter_vmx(kheap_metadata_t *kheap, single_cpu_state_t *state)
 	writedr7(readdr7() & 0xffffffff);
     DEBUG("changed registers to support vmx");
 
-    ASSERT(vmxon(state->vmxon) == 0);
+    ASSERT(vmxon(state->cpu_data->vmxon) == 0);
     DEBUG("vmxon");
 
-    ASSERT(vmclear(state->vmcs) == 0);
+    ASSERT(vmclear(state->cpu_data->vmcs) == 0);
     DEBUG("vmclear");
 
-    ASSERT(vmptrld(state->vmcs) == 0);
+    ASSERT(vmptrld(state->cpu_data->vmcs) == 0);
     INFO("vmptrld");
 
     configure_vmcs(state);
     DEBUG("vmcs configured");
 
-    if (vmlaunch() != 0) {
-        uint64_t error_code;
-        vmread(VMCS_VM_INSTRUCTION_ERROR, &error_code);
-        PANIC("vmlaunch failed: error code %d", error_code);
-    }
+    __vmlaunch_handler();
 
-    INFO("initialized hypervisor successfully");
+    // an error occured
+    uint64_t error_code;
+    vmread(VMCS_VM_INSTRUCTION_ERROR, &error_code);
+    PANIC("vmlaunch failed: error code %d", error_code);
 }
 
 
@@ -87,7 +89,7 @@ static uint32_t set_reserved_control_bits(uint32_t control, uint32_t msr, uint32
 }
 
 
-void configure_vmcs(single_cpu_state_t *state) {
+void configure_vmcs(cpu_state_t *state) {
     // initialize guest state area
     vmwrite(VMCS_GUEST_CR0, readcr0());
     vmwrite(VMCS_GUEST_CR3, readcr3());
@@ -152,7 +154,7 @@ void configure_vmcs(single_cpu_state_t *state) {
     vmwrite(VMCS_GUEST_SYSENTER_EIP, 0xffff);
     vmwrite(VMCS_GUEST_SYSENTER_ESP, 0xffff);
 
-    vmwrite(VMCS_GUEST_ACTIVITY_STATE, CPU_STATE_ACTIVE);
+    vmwrite(VMCS_GUEST_ACTIVITY_STATE, CPU_STATUS_ACTIVE);
     vmwrite(VMCS_GUEST_INTERRUPTIBILITY_INFO, 0);  // default: not blocked by sti, mov ss, smi, etc
     vmwrite(VMCS_VMCS_LINK_POINTER, -1ULL);  // should be set to -1 if vmcs shadowing is disabled
     // vmx preemptive time value?
@@ -164,7 +166,7 @@ void configure_vmcs(single_cpu_state_t *state) {
     vmwrite(VMCS_HOST_CR0, readcr0());
     vmwrite(VMCS_HOST_CR3, readcr3());  // todo: create new paging tables
     vmwrite(VMCS_HOST_CR4, readcr4());  // according to HyperWin, should be or'ed with CR4_HOST_REQUIRED1 but I didn't find it in the docs
-    vmwrite(VMCS_HOST_RIP, (size_t)vmexit_handler);
+    vmwrite(VMCS_HOST_RIP, (size_t)__vmexit_handler);
     vmwrite(VMCS_HOST_RSP, (size_t)state->stack + sizeof(state->stack));  // from high addresses to lower
     vmwrite(VMCS_HOST_EFER, rdmsr(MSR_IA32_EFER));
 
@@ -178,7 +180,7 @@ void configure_vmcs(single_cpu_state_t *state) {
     vmwrite(VMCS_HOST_FS_SELECTOR, get_fs()); 
     vmwrite(VMCS_HOST_TR_SELECTOR, get_ds());  // probably won't cause a bug 
     vmwrite(VMCS_HOST_TR_BASE, get_ds());
-    vmwrite(VMCS_HOST_GDTR_BASE, (size_t)state->gdt);
+    vmwrite(VMCS_HOST_GDTR_BASE, (size_t)state->cpu_data->shared_data->gdt);
     vmwrite(VMCS_HOST_GDTR_BASE, 0);
 
     // fs and gs are available and not used by the hardware
@@ -230,7 +232,7 @@ void configure_vmcs(single_cpu_state_t *state) {
     vmwrite(VMCS_VM_ENTRY_MSR_LOAD_COUNT, 0);
     vmwrite(VMCS_VM_ENTRY_INTR_INFO, 0);
 
-    vmwrite(VMCS_VIRTUAL_PROCESSOR_ID, 1);
+    // vmwrite(VMCS_VIRTUAL_PROCESSOR_ID, 1);
 }
 
 
@@ -240,5 +242,7 @@ void vmexit_handler(void) {
 
 
 void vmenter_handler(void) {
-    INFO("VMENTER");
+    INFO("VMENTER 1");
+    asm volatile("vmcall");  // cause vmexit
+    PANIC("VMENTER 2");
 }

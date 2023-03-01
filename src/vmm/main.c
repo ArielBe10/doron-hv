@@ -33,10 +33,10 @@ void vmm_main()
     read_disk(&dap);
 
     kheap_metadata_t kheap = setup_kheap(e820_mmap, 0x10000);
-    shared_cpu_state_t *shared_cpu_state = create_cpu_states(&kheap);
-    configure_cpu_states(shared_cpu_state);
+    cpu_shared_data_t *shared_data = create_cpu_data(&kheap);
+    set_cpu_data(shared_data);
 
-    enter_vmx(&kheap, shared_cpu_state->single_cpu_states[0]);
+    enter_vmx(&kheap, shared_data->cpu_states[0]);
 
     INFO("finished vmm_main");
     exit();
