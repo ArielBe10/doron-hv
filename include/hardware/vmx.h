@@ -35,9 +35,16 @@ static inline void vmxoff(void)
     asm volatile("vmxoff");
 }
 
-static inline void vmlaunch(void)
+static inline int vmlaunch(void)
 {
-    asm volatile("vmlaunch");
+    uint64_t flags;
+    asm volatile("vmlaunch; pushf; pop %0"
+                 : "=r"(flags));
+    if (flags & CARRY_FLAG_MASK) // invalid vmcs pointer
+        return 1;
+    if (flags & ZERO_FLAG_MASK) // something else
+        return 2;
+    return 0;
 }
 
 static inline void vmresume(void)

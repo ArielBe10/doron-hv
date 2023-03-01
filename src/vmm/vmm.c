@@ -4,6 +4,7 @@
 #include "lib/logging.h"
 #include "hardware/vmcs.h"
 #include "hardware/msr.h"
+#include "lib/string.h"
 
 #include <stddef.h>
 
@@ -38,6 +39,7 @@ void enter_vmx(kheap_metadata_t *kheap, single_cpu_state_t *state)
 {
     INFO("entering vmx");
 
+    memset(state->vmcs, 0, sizeof(state->vmcs));
     *(uint32_t *)state->vmcs = rdmsr(MSR_IA32_VMX_BASIC);
     *(uint32_t *)state->vmxon = rdmsr(MSR_IA32_VMX_BASIC);
 
@@ -49,10 +51,12 @@ void enter_vmx(kheap_metadata_t *kheap, single_cpu_state_t *state)
     }
     DEBUG("enabled execution in smx and non sxm");
 
+    // should be modified before vmxon
     writecr0((readcr0() | CR0_NE_ENABLE | rdmsr(MSR_IA32_VMX_CR0_FIXED0)) & rdmsr(MSR_IA32_VMX_CR0_FIXED1));
     writecr4((readcr4() | CR4_VMX_ENABLE | rdmsr(MSR_IA32_VMX_CR4_FIXED0)) & rdmsr(MSR_IA32_VMX_CR4_FIXED1));
-
-    DEBUG("changed cr0 and cr4 to support vmx");
+    wrmsr(MSR_IA32_DEBUGCTL, rdmsr(MSR_IA32_DEBUGCTL) & MSR_IA32_DEBUGCTL_NON_RESERVED0);
+	writedr7(readdr7() & 0xffffffff);
+    DEBUG("changed registers to support vmx");
 
     ASSERT(vmxon(state->vmxon) == 0);
     DEBUG("vmxon");
@@ -60,30 +64,30 @@ void enter_vmx(kheap_metadata_t *kheap, single_cpu_state_t *state)
     ASSERT(vmclear(state->vmcs) == 0);
     DEBUG("vmclear");
 
+    ASSERT(vmptrld(state->vmcs) == 0);
+    INFO("vmptrld");
+
     configure_vmcs(state);
     DEBUG("vmcs configured");
 
-    ASSERT(vmptrld(state->vmcs) == 0);
-    INFO("vmx entered successfully");
+    if (vmlaunch() != 0) {
+        uint64_t error_code;
+        vmread(VMCS_VM_INSTRUCTION_ERROR, &error_code);
+        PANIC("vmlaunch failed: error code %d", error_code);
+    }
 
-    vmlaunch();
+    INFO("initialized hypervisor successfully");
 }
 
 
-static uint32_t set_reserved_control_bits(uint32_t control, uint32_t msr)
+static uint32_t set_reserved_control_bits(uint32_t control, uint32_t msr, uint32_t true_msr, bool use_true_msr)
 {
-    uint64_t msr_value = rdmsr(msr);
+    uint64_t msr_value = use_true_msr ? rdmsr(true_msr) : rdmsr(msr);
     return (control & (msr_value >> 32)) | (msr_value & 0xffffffff);
 }
 
 
 void configure_vmcs(single_cpu_state_t *state) {
-    // should be modified before vmxon
-    wrmsr(MSR_IA32_DEBUGCTL, rdmsr(MSR_IA32_DEBUGCTL) & MSR_IA32_DEBUGCTL_NON_RESERVED0);
-	writedr7(readdr7() & 0xffffffff);
-    vmwrite(VMCS_GUEST_SYSENTER_EIP, 0xffff);
-    vmwrite(VMCS_GUEST_SYSENTER_ESP, 0xffff);
-
     // initialize guest state area
     vmwrite(VMCS_GUEST_CR0, readcr0());
     vmwrite(VMCS_GUEST_CR3, readcr3());
@@ -140,10 +144,13 @@ void configure_vmcs(single_cpu_state_t *state) {
     vmwrite(VMCS_GUEST_LDTR_LIMIT, 0xff);
     vmwrite(VMCS_GUEST_LDTR_AR_BYTES, VMCS_SELECTOR_UNUSABLE);
 
-
     vmwrite(VMCS_GUEST_EFER, rdmsr(MSR_IA32_EFER));
     vmwrite(VMCS_GUEST_IA32_DEBUGCTL, rdmsr(MSR_IA32_DEBUGCTL) & 0xffffffff);
     vmwrite(VMCS_GUEST_IA32_DEBUGCTL_HIGH, rdmsr(MSR_IA32_DEBUGCTL) >> 32);
+
+    vmwrite(VMCS_GUEST_SYSENTER_CS, 8);
+    vmwrite(VMCS_GUEST_SYSENTER_EIP, 0xffff);
+    vmwrite(VMCS_GUEST_SYSENTER_ESP, 0xffff);
 
     vmwrite(VMCS_GUEST_ACTIVITY_STATE, CPU_STATE_ACTIVE);
     vmwrite(VMCS_GUEST_INTERRUPTIBILITY_INFO, 0);  // default: not blocked by sti, mov ss, smi, etc
@@ -156,66 +163,70 @@ void configure_vmcs(single_cpu_state_t *state) {
     // initialize host state area
     vmwrite(VMCS_HOST_CR0, readcr0());
     vmwrite(VMCS_HOST_CR3, readcr3());  // todo: create new paging tables
-    vmwrite(VMCS_HOST_CR4, readcr4() | CR4_HOST_REQUIRED1);
+    vmwrite(VMCS_HOST_CR4, readcr4());  // according to HyperWin, should be or'ed with CR4_HOST_REQUIRED1 but I didn't find it in the docs
     vmwrite(VMCS_HOST_RIP, (size_t)vmexit_handler);
     vmwrite(VMCS_HOST_RSP, (size_t)state->stack + sizeof(state->stack));  // from high addresses to lower
     vmwrite(VMCS_HOST_EFER, rdmsr(MSR_IA32_EFER));
 
+    DEBUG("cs: %d, ds: %d", get_cs(), get_ds());
+    ASSERT(((get_cs() & 7) == 0) && ((get_ds() & 7) == 0));  // TI and RPL sould be 0
     vmwrite(VMCS_HOST_CS_SELECTOR, get_cs());
     vmwrite(VMCS_HOST_DS_SELECTOR, get_ds());
     vmwrite(VMCS_HOST_ES_SELECTOR, get_es());
     vmwrite(VMCS_HOST_SS_SELECTOR, get_ss());
     vmwrite(VMCS_HOST_GS_SELECTOR, get_gs());
     vmwrite(VMCS_HOST_FS_SELECTOR, get_fs()); 
-    vmwrite(VMCS_HOST_TR_SELECTOR, get_ds());  // probably ok
+    vmwrite(VMCS_HOST_TR_SELECTOR, get_ds());  // probably won't cause a bug 
     vmwrite(VMCS_HOST_TR_BASE, get_ds());
     vmwrite(VMCS_HOST_GDTR_BASE, (size_t)state->gdt);
+    vmwrite(VMCS_HOST_GDTR_BASE, 0);
 
     // fs and gs are available and not used by the hardware
     vmwrite(VMCS_HOST_FS_BASE, (size_t)state);
     vmwrite(VMCS_HOST_GS_BASE, 0);
     
     vmwrite(VMCS_HOST_SYSENTER_CS, 0xff);
-    // should be canonical addresses
     vmwrite(VMCS_HOST_SYSENTER_EIP, 0xffffffff);
     vmwrite(VMCS_HOST_SYSENTER_ESP, 0xffffffff);
 
-
-    vmwrite(VMCS_GUEST_SYSENTER_CS, 8);
-
     // initialize vm execution control
-    vmwrite(VMCS_PIN_BASED_VM_EXEC_CONTROL, set_reserved_control_bits(0, MSR_IA32_VMX_PINBASED_CTLS));
+    uint64_t use_true_msr = (rdmsr(MSR_IA32_VMX_BASIC) & (1UL << 55)) >> 55;  // bit 55 of MSR_IA32_VMX_BASIC
+    DEBUG("IA32_VMX_BASIC_MSR: %p, bit 55 is %d", rdmsr(MSR_IA32_VMX_BASIC), use_true_msr);
 
-    // vmwrite(VMCS_CPU_BASED_VM_EXEC_CONTROL, set_reserved_control_bits(
-    //     CPU_BASED_ACTIVATE_MSR_BITMAP | CPU_BASED_ACTIVATE_SECONDARY_CONTROLS, MSR_IA32_VMX_PROCBASED_CTLS));
-    vmwrite(VMCS_CPU_BASED_VM_EXEC_CONTROL, set_reserved_control_bits(0, MSR_IA32_VMX_PROCBASED_CTLS));  // todo: enable msr bitmap & secondary vm execution controls
-    
-    // vmwrite(VMCS_SECONDARY_VM_EXEC_CONTROL, set_reserved_control_bits(
-    //     CPU_BASED_CTL2_ENABLE_INVPCID | CPU_BASED_CTL2_RDTSCP  | CPU_BASED_CTL2_ENABLE_EPT | CPU_BASED_CTL2_UNRESTRICTED_GUEST, MSR_IA32_VMX_PROCBASED_CTLS2));
+    uint32_t pin_based_vmx_control = set_reserved_control_bits(0, MSR_IA32_VMX_PINBASED_CTLS, MSR_IA32_VMX_TRUE_PINBASED_CTLS, use_true_msr);
+    DEBUG("pin based vmx control: %p", pin_based_vmx_control);
+    vmwrite(VMCS_PIN_BASED_VM_EXEC_CONTROL, pin_based_vmx_control);
+
+    // todo: enable msr bitmap & ept in secondary vm execution controls
+    uint32_t cpu_based_vmx_control = set_reserved_control_bits(0, MSR_IA32_VMX_PROCBASED_CTLS, MSR_IA32_VMX_TRUE_PROCBASED_CTLS, use_true_msr);
+    DEBUG("cpu based vmx control: %p", cpu_based_vmx_control);
+    vmwrite(VMCS_CPU_BASED_VM_EXEC_CONTROL, cpu_based_vmx_control);
 
     // do not break on any exception
     vmwrite(VMCS_EXCEPTION_BITMAP, 0);
     vmwrite(VMCS_PAGE_FAULT_ERROR_CODE_MASK, 0);
     vmwrite(VMCS_PAGE_FAULT_ERROR_CODE_MATCH, 0);
-
-    // io bitmap is disabled
-
     vmwrite(VMCS_TSC_OFFSET, 0);  // disabled in cpu based execution controls
     vmwrite(VMCS_TSC_OFFSET_HIGH, 0);
-
-    vmwrite(VMCS_CR0_GUEST_HOST_MASK, 0);  // guest can read & write to cr0/4
+    vmwrite(VMCS_CR0_GUEST_HOST_MASK, 0);  // guest can read & write cr0/4
     vmwrite(VMCS_CR4_GUEST_HOST_MASK, 0);
-
     vmwrite(VMCS_CR3_TARGET_COUNT, 0);  // disable cr3 target controls
+    // io bitmap is disabled and doesn't need to be initialized 
     // todo: add msr bitmap and ept
 
     // initialize vm exit control 
-    vmwrite(VMCS_VM_EXIT_CONTROLS, set_reserved_control_bits(VM_EXIT_SAVE_EFER | VM_EXIT_LOAD_EFER | VM_EXIT_IA32E_MODE, MSR_IA32_VMX_EXIT_CTLS));
+    uint32_t vmx_exit_control = set_reserved_control_bits(VM_EXIT_SAVE_EFER | VM_EXIT_LOAD_EFER | VM_EXIT_IA32E_MODE,
+        MSR_IA32_VMX_EXIT_CTLS, MSR_IA32_VMX_TRUE_EXIT_CTLS, use_true_msr);
+    DEBUG("vmx exit control: %p", vmx_exit_control);
+    vmwrite(VMCS_VM_EXIT_CONTROLS, vmx_exit_control);
     vmwrite(VMCS_VM_EXIT_MSR_STORE_COUNT, 0);
     vmwrite(VMCS_VM_EXIT_MSR_LOAD_COUNT, 0);
     
     // initialize vm entry control
-    vmwrite(VMCS_VM_ENTRY_CONTROLS, set_reserved_control_bits(VM_ENTRY_LOAD_EFER | VM_ENTRY_IA32E_MODE, MSR_IA32_VMX_ENTRY_CTLS));
+    uint32_t vmx_entry_control = set_reserved_control_bits(VM_ENTRY_LOAD_EFER | VM_ENTRY_IA32E_MODE,
+        MSR_IA32_VMX_ENTRY_CTLS, MSR_IA32_VMX_TRUE_ENTRY_CTLS, use_true_msr);
+    DEBUG("vmx entry control: %p", vmx_entry_control);
+    vmwrite(VMCS_VM_ENTRY_CONTROLS, vmx_entry_control);
     vmwrite(VMCS_VM_ENTRY_MSR_LOAD_COUNT, 0);
     vmwrite(VMCS_VM_ENTRY_INTR_INFO, 0);
 
