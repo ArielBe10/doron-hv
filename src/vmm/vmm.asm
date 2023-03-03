@@ -45,7 +45,6 @@ __vmexit_handler:
     mov [fs:0x80], rbx
 
     call vmexit_handler
-    call vmexit_handler
 
     ; load state
     mov rax, VMCS_GUEST_RSP

@@ -4,7 +4,9 @@
 #include "lib/logging.h"
 #include "hardware/vmcs.h"
 #include "hardware/msr.h"
+#include "hardware/exit_reason.h"
 #include "lib/string.h"
+#include "vmm/vmexit.h"
 
 #include <stddef.h>
 
@@ -25,6 +27,7 @@
 #define VMCS_DS_AR 0xc093
 #define VMCS_TSS_AR 0xc08b  // not present 
 #define VMCS_SELECTOR_UNUSABLE (1 << 16)
+
 
 extern void __vmexit_handler(void);
 extern void __vmlaunch_handler(void);
@@ -95,7 +98,7 @@ void configure_vmcs(cpu_state_t *state) {
     vmwrite(VMCS_GUEST_CR3, readcr3());
     vmwrite(VMCS_GUEST_CR4, readcr4());
     vmwrite(VMCS_GUEST_DR7, readdr7());
-    vmwrite(VMCS_GUEST_RSP, (size_t)state->stack + sizeof(state->stack)); // Will be handled before vmlaunch is called, see x86_64.asm
+    vmwrite(VMCS_GUEST_RSP, 0);  // will be changed to current value of rsp in vmm/vmm.asm
     vmwrite(VMCS_GUEST_RIP, (size_t)vmenter_handler);
     vmwrite(VMCS_GUEST_RFLAGS, (readflags() & RFLAGS_NON_RESERVED0) | RFLAGS_RESERVED1);
 
@@ -200,7 +203,8 @@ void configure_vmcs(cpu_state_t *state) {
     vmwrite(VMCS_PIN_BASED_VM_EXEC_CONTROL, pin_based_vmx_control);
 
     // todo: enable msr bitmap & ept in secondary vm execution controls
-    uint32_t cpu_based_vmx_control = set_reserved_control_bits(0, MSR_IA32_VMX_PROCBASED_CTLS, MSR_IA32_VMX_TRUE_PROCBASED_CTLS, use_true_msr);
+    uint32_t cpu_based_vmx_control = set_reserved_control_bits(CPU_BASED_HLT_EXITING,
+        MSR_IA32_VMX_PROCBASED_CTLS, MSR_IA32_VMX_TRUE_PROCBASED_CTLS, use_true_msr);
     DEBUG("cpu based vmx control: %p", cpu_based_vmx_control);
     vmwrite(VMCS_CPU_BASED_VM_EXEC_CONTROL, cpu_based_vmx_control);
 
@@ -237,12 +241,30 @@ void configure_vmcs(cpu_state_t *state) {
 
 
 void vmexit_handler(void) {
-    INFO("VMEXIT");
+    uint64_t exit_reason;
+    vmread(VMCS_VM_EXIT_REASON, &exit_reason);
+    exit_reason &= VMCS_VM_EXIT_REASON_MASK;
+    INFO("vmexit: %s", EXIT_REASON_NAMES[exit_reason]);
+
+    cpu_state_t *state;
+    vmread(VMCS_HOST_FS_BASE, (uint64_t *)&state);
+
+    int status;
+    switch (exit_reason) {
+        case EXIT_REASON_HLT:
+            status = handle_vm_hlt(state);
+            break;
+        default:
+            PANIC("unsupported exit reason: %s", EXIT_REASON_NAMES[exit_reason]);
+    }
+    if (status != 0) {
+        PANIC("error while handling vmexit: %d", status);
+    }
 }
 
 
 void vmenter_handler(void) {
-    INFO("VMENTER 1");
-    asm volatile("vmcall");  // cause vmexit
-    PANIC("VMENTER 2");
+    INFO("vmenter 1");
+    asm volatile("hlt");  // cause vmexit
+    PANIC("vmenter 2");
 }
