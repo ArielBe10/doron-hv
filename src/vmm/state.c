@@ -5,6 +5,10 @@
 #include "hardware/registers.h"
 #include "lib/string.h"
 #include "vmm/paging.h"
+#include "vmm/kheap.h"
+
+extern void __hypervisor_start(void);
+extern void __hypervisor_end(void);
 
 
 cpu_shared_data_t *create_cpu_data(kheap_metadata_t *kheap) {
@@ -46,6 +50,11 @@ void set_cpu_data(cpu_shared_data_t *shared_data) {
 
     DEBUG("creating ept paging tables");
     create_ept_paging_tables(&shared_data->ept_paging_tables);
+
+    size_t hypervisor_start = ALIGNED_DOWN((size_t)__hypervisor_start, PAGE_SIZE);
+    size_t hypervisor_end = ALIGNED_UP((size_t)__hypervisor_end, PAGE_SIZE);
+    DEBUG("blocking RWX in EPT code and data from %p to %p", hypervisor_start, hypervisor_end);
+    update_ept_access_rights(&shared_data->ept_paging_tables, hypervisor_start, hypervisor_end - hypervisor_start, 0);
 
     DEBUG("finished initializing cpu data");
 }

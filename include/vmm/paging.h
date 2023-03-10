@@ -50,3 +50,4 @@ typedef struct {
 
 void create_ept_paging_tables(ept_paging_tables_t *ept_paging_tables);
 void create_paging_tables(paging_tables_t *paging_tables);
+void update_ept_access_rights(ept_paging_tables_t *ept_paging_tables, size_t start, size_t length, uint8_t access_rights);

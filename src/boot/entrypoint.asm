@@ -1,6 +1,8 @@
 %include "src/boot/macros.asm"
 
 extern vmm_main
+global __hypervisor_start
+global __hypervisor_end
 
 section .data
 %include "src/boot/gdt.asm"
@@ -30,4 +32,9 @@ long_mode_entry:
 
 ; grub multiboot header
 section .multiboot
+__hypervisor_start:
+
 %include "src/boot/multiboot.asm"
+
+section .end
+__hypervisor_end:

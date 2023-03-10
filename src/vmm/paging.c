@@ -41,3 +41,16 @@ void create_ept_paging_tables(ept_paging_tables_t *ept_paging_tables) {
         physical_address += PAGE_SIZE;
     }
 }
+
+void update_ept_access_rights(ept_paging_tables_t *ept_paging_tables, size_t start, size_t length, uint8_t access_rights) {
+    ASSERT(start % PAGE_SIZE == 0);
+    ASSERT(length % PAGE_SIZE == 0);
+    ASSERT(access_rights <= 7);
+    
+    size_t page_index = start / PAGE_SIZE;
+    for (size_t i = 0; i < length / PAGE_SIZE; i++) {
+        ept_paging_tables->ept_page_tables[page_index] &= ~7ULL;  // remove all rights
+        ept_paging_tables->ept_page_tables[page_index] |= access_rights;  // grant desired rights
+        page_index++;
+    }
+}

@@ -7,4 +7,5 @@ SECTIONS
     .data : { *(.data) } 
     .bss : { *(.bss) }
     .rodata : { *(.rodata) }
+    .end : { *(.end) }
 }

@@ -272,7 +272,11 @@ void vmexit_handler(void) {
 
 
 void vmenter_handler(void) {
-    INFO("vmenter 1");
-    asm volatile("hlt");  // cause vmexit
-    PANIC("vmenter 2");
+    INFO("VMENTER");
+
+    int *p = (int *)vmenter_handler;
+    INFO("%p", p);
+    INFO("%p", *p);
+
+    PANIC("FINISHED VMENTER");
 }
