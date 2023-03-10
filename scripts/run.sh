@@ -8,6 +8,7 @@ LOGFILE="${PROJECT_DIR}/hypervisor.log"
 
 qemu-system-x86_64 \
         -enable-kvm -cpu host -smp cores=4 \
+        -m 1G \
         -drive file="$IMAGE",index=1,media=cdrom \
         -drive file="$HARD_DISK",index=0,media=disk \
         -chardev stdio,id=char0,logfile="$LOGFILE",signal=off \

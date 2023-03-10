@@ -7,7 +7,7 @@ ASSEMBLER = nasm
 ASSEMBLER_FLAGS = -f elf64
 
 C_COMPILER = gcc
-C_COMPILER_FLAGS = -I ./include -nostdlib -c -Werror -Wall -mno-red-zone -ffreestanding -mno-red-zone -g
+C_COMPILER_FLAGS = -I ./include -nostdlib -c -Werror -Wall -mno-red-zone -ffreestanding -mno-red-zone -g -Wno-packed-bitfield-compat
 
 
 SRC_DIR = src

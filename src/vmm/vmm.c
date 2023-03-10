@@ -79,8 +79,7 @@ void enter_vmx(kheap_metadata_t *kheap, cpu_state_t *state)
     __vmlaunch_handler();
 
     // an error occured
-    uint64_t error_code;
-    vmread(VMCS_VM_INSTRUCTION_ERROR, &error_code);
+    uint64_t error_code = vmread(VMCS_VM_INSTRUCTION_ERROR);
     PANIC("vmlaunch failed: error code %d", error_code);
 }
 
@@ -93,9 +92,10 @@ static uint32_t set_reserved_control_bits(uint32_t control, uint32_t msr, uint32
 
 
 void configure_vmcs(cpu_state_t *state) {
+    uint64_t cr3 = (uint64_t)&state->cpu_data->shared_data->paging_tables.pml4_tables;
     // initialize guest state area
     vmwrite(VMCS_GUEST_CR0, readcr0());
-    vmwrite(VMCS_GUEST_CR3, readcr3());
+    vmwrite(VMCS_GUEST_CR3, cr3);
     vmwrite(VMCS_GUEST_CR4, readcr4());
     vmwrite(VMCS_GUEST_DR7, readdr7());
     vmwrite(VMCS_GUEST_RSP, 0);  // will be changed to current value of rsp in vmm/vmm.asm
@@ -167,7 +167,7 @@ void configure_vmcs(cpu_state_t *state) {
 
     // initialize host state area
     vmwrite(VMCS_HOST_CR0, readcr0());
-    vmwrite(VMCS_HOST_CR3, readcr3());  // todo: create new paging tables
+    vmwrite(VMCS_HOST_CR3, cr3);
     vmwrite(VMCS_HOST_CR4, readcr4());  // according to HyperWin, should be or'ed with CR4_HOST_REQUIRED1 but I didn't find it in the docs
     vmwrite(VMCS_HOST_RIP, (size_t)__vmexit_handler);
     vmwrite(VMCS_HOST_RSP, (size_t)state->stack + sizeof(state->stack));  // from high addresses to lower
@@ -203,22 +203,30 @@ void configure_vmcs(cpu_state_t *state) {
     vmwrite(VMCS_PIN_BASED_VM_EXEC_CONTROL, pin_based_vmx_control);
 
     // todo: enable msr bitmap & ept in secondary vm execution controls
-    uint32_t cpu_based_vmx_control = set_reserved_control_bits(CPU_BASED_HLT_EXITING,
+    uint32_t cpu_based_vmx_control = set_reserved_control_bits(CPU_BASED_HLT_EXITING | CPU_BASED_ACTIVATE_SECONDARY_CONTROLS,
         MSR_IA32_VMX_PROCBASED_CTLS, MSR_IA32_VMX_TRUE_PROCBASED_CTLS, use_true_msr);
     DEBUG("cpu based vmx control: %p", cpu_based_vmx_control);
     vmwrite(VMCS_CPU_BASED_VM_EXEC_CONTROL, cpu_based_vmx_control);
+
+    uint32_t secondary_cpu_based_vmx_control = set_reserved_control_bits(CPU_BASED_CTL2_ENABLE_EPT,
+        MSR_IA32_VMX_PROCBASED_CTLS2, 0, 0);  // for this control always use MSR_IA32_VMX_PROCBASED_CTLS2
+    DEBUG("secondary cpu based vmx control: %p", secondary_cpu_based_vmx_control);
+    vmwrite(VMCS_SECONDARY_VM_EXEC_CONTROL, secondary_cpu_based_vmx_control);
 
     // do not break on any exception
     vmwrite(VMCS_EXCEPTION_BITMAP, 0);
     vmwrite(VMCS_PAGE_FAULT_ERROR_CODE_MASK, 0);
     vmwrite(VMCS_PAGE_FAULT_ERROR_CODE_MATCH, 0);
+
     vmwrite(VMCS_TSC_OFFSET, 0);  // disabled in cpu based execution controls
     vmwrite(VMCS_TSC_OFFSET_HIGH, 0);
     vmwrite(VMCS_CR0_GUEST_HOST_MASK, 0);  // guest can read & write cr0/4
     vmwrite(VMCS_CR4_GUEST_HOST_MASK, 0);
     vmwrite(VMCS_CR3_TARGET_COUNT, 0);  // disable cr3 target controls
     // io bitmap is disabled and doesn't need to be initialized 
-    // todo: add msr bitmap and ept
+    // todo: add msr bitmap
+
+    vmwrite(VMCS_EPT_POINTER, state->cpu_data->shared_data->ept_paging_tables.eptp);
 
     // initialize vm exit control 
     uint32_t vmx_exit_control = set_reserved_control_bits(VM_EXIT_SAVE_EFER | VM_EXIT_LOAD_EFER | VM_EXIT_IA32E_MODE,
@@ -241,18 +249,18 @@ void configure_vmcs(cpu_state_t *state) {
 
 
 void vmexit_handler(void) {
-    uint64_t exit_reason;
-    vmread(VMCS_VM_EXIT_REASON, &exit_reason);
-    exit_reason &= VMCS_VM_EXIT_REASON_MASK;
+    uint64_t exit_reason = vmread(VMCS_VM_EXIT_REASON) & VMCS_VM_EXIT_REASON_MASK;
     INFO("vmexit: %s", EXIT_REASON_NAMES[exit_reason]);
 
-    cpu_state_t *state;
-    vmread(VMCS_HOST_FS_BASE, (uint64_t *)&state);
+    cpu_state_t *state = (cpu_state_t*)vmread(VMCS_HOST_FS_BASE);
 
     int status;
     switch (exit_reason) {
         case EXIT_REASON_HLT:
             status = handle_vm_hlt(state);
+            break;
+        case EXIT_REASON_EPT_VIOLATION:
+            status = handle_ept_violation(state);
             break;
         default:
             PANIC("unsupported exit reason: %s", EXIT_REASON_NAMES[exit_reason]);

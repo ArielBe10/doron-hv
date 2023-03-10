@@ -3,10 +3,8 @@
 #include <stddef.h>
 
 #include "vmm/kheap.h"
+#include "vmm/paging.h"
 
-
-#define PAGE_SIZE 0x1000
-#define PAGE_TABLE_LENGTH 512
 #define STACK_SIZE 0x10000
 
 
@@ -51,9 +49,8 @@ struct _cpu_data_t{
 
 
 struct _cpu_shared_data_t {
-    size_t pml4_tables[PAGE_TABLE_LENGTH];  // 1 pml4 table
-    size_t pdp_tables[PAGE_TABLE_LENGTH];  // 512 pdp tables
-    size_t pd_tables[PAGE_TABLE_LENGTH * PAGE_TABLE_LENGTH];  // 512 pd for every pdp
+    paging_tables_t paging_tables;
+    ept_paging_tables_t ept_paging_tables;
     size_t gdt[0xff];
 
     int cpu_count;

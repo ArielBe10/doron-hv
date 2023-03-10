@@ -5,11 +5,13 @@
 #define CARRY_FLAG_MASK 1
 #define ZERO_FLAG_MASK (1 << 6)
 
-static inline void vmread(uint64_t field, uint64_t *value)
+static inline uint64_t vmread(uint64_t field)
 {
+    uint64_t value;
     asm volatile("vmread %1,%0"
-                 : "=rm"(*value)
+                 : "=rm"(value)
                  : "r"(field));
+    return value;
 }
 
 static inline void vmwrite(uint64_t field, uint64_t value)
