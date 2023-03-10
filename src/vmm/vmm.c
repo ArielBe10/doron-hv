@@ -7,6 +7,7 @@
 #include "hardware/exit_reason.h"
 #include "lib/string.h"
 #include "vmm/vmexit.h"
+#include "vmm/bios.h"
 
 #include <stddef.h>
 
@@ -202,13 +203,13 @@ void configure_vmcs(cpu_state_t *state) {
     DEBUG("pin based vmx control: %p", pin_based_vmx_control);
     vmwrite(VMCS_PIN_BASED_VM_EXEC_CONTROL, pin_based_vmx_control);
 
-    // todo: enable msr bitmap & ept in secondary vm execution controls
-    uint32_t cpu_based_vmx_control = set_reserved_control_bits(CPU_BASED_HLT_EXITING | CPU_BASED_ACTIVATE_SECONDARY_CONTROLS,
+    uint32_t cpu_based_vmx_control = set_reserved_control_bits(CPU_BASED_HLT_EXITING | CPU_BASED_ACTIVATE_SECONDARY_CONTROLS |
+        CPU_BASED_ACTIVATE_MSR_BITMAP,
         MSR_IA32_VMX_PROCBASED_CTLS, MSR_IA32_VMX_TRUE_PROCBASED_CTLS, use_true_msr);
     DEBUG("cpu based vmx control: %p", cpu_based_vmx_control);
     vmwrite(VMCS_CPU_BASED_VM_EXEC_CONTROL, cpu_based_vmx_control);
 
-    uint32_t secondary_cpu_based_vmx_control = set_reserved_control_bits(CPU_BASED_CTL2_ENABLE_EPT,
+    uint32_t secondary_cpu_based_vmx_control = set_reserved_control_bits(CPU_BASED_CTL2_ENABLE_EPT | CPU_BASED_CTL2_UNRESTRICTED_GUEST,
         MSR_IA32_VMX_PROCBASED_CTLS2, 0, 0);  // for this control always use MSR_IA32_VMX_PROCBASED_CTLS2
     DEBUG("secondary cpu based vmx control: %p", secondary_cpu_based_vmx_control);
     vmwrite(VMCS_SECONDARY_VM_EXEC_CONTROL, secondary_cpu_based_vmx_control);
@@ -224,9 +225,9 @@ void configure_vmcs(cpu_state_t *state) {
     vmwrite(VMCS_CR4_GUEST_HOST_MASK, 0);
     vmwrite(VMCS_CR3_TARGET_COUNT, 0);  // disable cr3 target controls
     // io bitmap is disabled and doesn't need to be initialized 
-    // todo: add msr bitmap
 
     vmwrite(VMCS_EPT_POINTER, state->cpu_data->shared_data->ept_paging_tables.eptp);
+    vmwrite(VMCS_MSR_BITMAP, (size_t)&state->cpu_data->shared_data->msr_bitmap[0]);
 
     // initialize vm exit control 
     uint32_t vmx_exit_control = set_reserved_control_bits(VM_EXIT_SAVE_EFER | VM_EXIT_LOAD_EFER | VM_EXIT_IA32E_MODE,
@@ -262,21 +263,26 @@ void vmexit_handler(void) {
         case EXIT_REASON_EPT_VIOLATION:
             status = handle_ept_violation(state);
             break;
+        case EXIT_REASON_VMCALL:
+            status = handle_vmcall(state);
+            break;
         default:
             PANIC("unsupported exit reason: %s", EXIT_REASON_NAMES[exit_reason]);
     }
     if (status != 0) {
         PANIC("error while handling vmexit: %d", status);
     }
+    INFO("VMRESUME");
 }
 
 
 void vmenter_handler(void) {
     INFO("VMENTER");
 
-    int *p = (int *)vmenter_handler;
-    INFO("%p", p);
-    INFO("%p", *p);
+    e820_mmap_t mmap;
+    get_e820_mmap(&mmap);
+    DEBUG("fake mmap:");
+    print_e820_mmap(&mmap);
 
     PANIC("FINISHED VMENTER");
 }

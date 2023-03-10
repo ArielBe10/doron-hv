@@ -2,7 +2,6 @@
 #include "lib/logging.h"
 #include <stdint.h>
 
-#define MMAP_AVAILABLE 1
 #define PAGE_ALIGNED(addr) ((addr) & (~0xfff))
 
 kheap_metadata_t setup_kheap(e820_mmap_t *mmap, uint64_t max_size)

@@ -2,6 +2,8 @@
 
 #include <stdint.h>
 
+#define MMAP_AVAILABLE 1
+
 typedef struct
 {
     uint64_t base;

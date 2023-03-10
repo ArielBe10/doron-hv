@@ -51,7 +51,14 @@ struct _cpu_data_t{
 struct _cpu_shared_data_t {
     paging_tables_t paging_tables;
     ept_paging_tables_t ept_paging_tables;
+    uint8_t msr_bitmap[0x1000];
+
     size_t gdt[0xff];
+
+    uint32_t int15_segment;
+    uint32_t int15_offset;
+
+    e820_mmap_t *fake_mmap;
 
     int cpu_count;
     cpu_state_t *cpu_states[];
@@ -59,4 +66,4 @@ struct _cpu_shared_data_t {
 
 
 cpu_shared_data_t *create_cpu_data(kheap_metadata_t *kheap);
-void set_cpu_data(cpu_shared_data_t *shared_data);
+void set_cpu_data(cpu_shared_data_t *shared_data, kheap_metadata_t kheap);

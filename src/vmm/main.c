@@ -4,6 +4,7 @@
 #include "vmm/kheap.h"
 #include "vmm/vmm.h"
 #include "vmm/state.h"
+#include "vmm/int15_hook.h"
 
 void exit(void)
 {
@@ -14,8 +15,6 @@ void vmm_main()
 {
     init_logging(DEBUG_LEVEL);
     INFO("starting vmm_main");
-
-    init_bios();
 
     // mmap size is unknown
     int e820_mmap_buffer[0x100];
@@ -34,7 +33,9 @@ void vmm_main()
 
     kheap_metadata_t kheap = setup_kheap(e820_mmap, 0x10000);
     cpu_shared_data_t *shared_data = create_cpu_data(&kheap);
-    set_cpu_data(shared_data);
+    set_cpu_data(shared_data, kheap);
+
+    setup_int15_hook(shared_data);
 
     enter_vmx(&kheap, shared_data->cpu_states[0]);
 

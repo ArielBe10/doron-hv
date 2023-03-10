@@ -25,10 +25,10 @@ void init_bios(void)
 
 void get_e820_mmap(e820_mmap_t *mmap_output)
 {
+    init_bios();
     call_real_mode_function_wrapper(bios_mmap);
     e820_mmap_t *mmap = (e820_mmap_t *)E820_MMAP_OUTPUT_ADDRESS;
     int length = 2 + 24 * mmap->count;
-    DEBUG("mmap found with length of 0x%x bytes", length);
     memcpy(mmap_output, mmap, length);
 }
 
@@ -45,6 +45,7 @@ void print_e820_mmap(const e820_mmap_t *mmap)
 
 void read_disk(bios_dap_t *dap)
 {
+    init_bios();
     memcpy((void *)DAP_ADDRESS, dap, sizeof(bios_dap_t));
     call_real_mode_function_wrapper(bios_read_disk);
 }
