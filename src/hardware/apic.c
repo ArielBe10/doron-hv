@@ -53,19 +53,15 @@ void x2apic_activate_cpu(size_t cpu_id, void *function_address) {
     size_t apic_start_copy_address = REAL_MODE_CODE_START_ADDRESS + (size_t)apic_start - (size_t)real_mode_code_start_offset;
     ASSERT(apic_start_copy_address % PAGE_SIZE == 0);
 
-    sleep();
     x2apic_issue_ipi(cpu_id, 0, APIC_INIT_INTERRUPT, APIC_LEVEL_DEASSERT);
-    sleep();
     DEBUG("sent INIT to cpu: %d", cpu_id);
 
     sleep();
     x2apic_issue_ipi(cpu_id, apic_start_copy_address / PAGE_SIZE, APIC_SIPI_INTERRUPT, APIC_LEVEL_ASSERT);
-    sleep();
     DEBUG("sent SIPI to cpu: %d", cpu_id);
 
     DEBUG("waiting for cpu: %d", cpu_id);
     while (*(uint8_t*)APIC_SEMAPHORE_ADDRESS == 0) {}  // wait for other cpu
-    sleep();
 
     INFO("activated cpu: %d", cpu_id);
 }

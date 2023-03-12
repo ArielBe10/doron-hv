@@ -3,8 +3,11 @@
 #include "lib/string.h"
 #include "lib/print.h"
 #include "drivers/serial.h"
+#include "lib/spinlock.h"
 
 static log_level_t min_level;
+
+static spinlock_t logging_lock = SPINLOCK_FREE;
 
 static char *log_level_str[5] = {
     [DEBUG_LEVEL] = "DEBUG",
@@ -50,7 +53,10 @@ void log_printf(log_level_t level, int line_no, const char *filename, const char
         va_end(argp);
 
         sprintf(buffer, "[%s] %s:%d: %s", log_level_str[level], filename, line_no, msg);
+
+        acquire_lock(&logging_lock);
         print_serial(buffer);
         write_serial('\n');
+        release_lock(&logging_lock);
     }
 }

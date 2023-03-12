@@ -29,6 +29,7 @@ long_mode_entry:
 ; include real mode functions
 %include "src/bios/real_mode.asm"
 %include "src/vmm/vmm.asm"
+%include "src/lib/spinlock.asm"
 
 ; grub multiboot header
 section .multiboot
