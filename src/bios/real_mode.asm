@@ -23,6 +23,7 @@ call_real_mode_function_wrapper:
 
 ; real mode code that should be copied to lower memory to be executed
 real_mode_code_start_offset:
+%include "src/hardware/apic.asm"  ; should be at a page aligned address
 %include "src/bios/switch_modes.asm"
 %include "src/bios/mmap.asm"
 %include "src/bios/bios_print.asm"

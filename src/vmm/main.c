@@ -5,6 +5,13 @@
 #include "vmm/vmm.h"
 #include "vmm/state.h"
 #include "vmm/int15_hook.h"
+#include "hardware/apic.h"
+
+
+static void apic_entry(void) {
+    INFO("hello");
+}
+
 
 void exit(void)
 {
@@ -37,7 +44,10 @@ void vmm_main()
 
     setup_int15_hook(shared_data);
 
-    enter_vmx(&kheap, shared_data->cpu_states[0]);
+    enable_x2apic();
+    x2apic_activate_cpu(2, apic_entry);
+
+    // enter_vmx(&kheap, shared_data->cpu_states[0]);
 
     INFO("finished vmm_main");
     exit();

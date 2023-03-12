@@ -2,7 +2,6 @@
 #include "lib/logging.h"
 #include "lib/string.h"
 
-#define REAL_MODE_CODE_START_ADDRESS 0x3000
 #define E820_MMAP_OUTPUT_ADDRESS 0x1000 // match MMAP_OUTPUT_ADDRESS in src/bios/mmap.asm
 #define DAP_ADDRESS 0x1200              // match DAP_ADDRESS in src/bios/read_disk.asm
 

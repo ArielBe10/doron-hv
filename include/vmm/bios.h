@@ -3,6 +3,8 @@
 #include <stdint.h>
 
 #define MMAP_AVAILABLE 1
+#define REAL_MODE_CODE_START_ADDRESS 0x3000  // should be page aligned for APIC start
+
 
 typedef struct
 {
