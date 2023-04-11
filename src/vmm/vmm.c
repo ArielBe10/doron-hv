@@ -8,6 +8,7 @@
 #include "lib/string.h"
 #include "vmm/vmexit.h"
 #include "vmm/bios.h"
+#include "hardware/apic.h"
 
 #include <stddef.h>
 
@@ -42,9 +43,47 @@ typedef enum {
 } cpu_status_t;
 
 
-void enter_vmx(kheap_metadata_t *kheap, cpu_state_t *state)
+kheap_metadata_t *g_kheap;
+cpu_state_t *g_state;
+
+
+void enter_vmx(void) {
+    __vmlaunch_handler();
+
+    // an error occured
+    uint64_t error_code = vmread(VMCS_VM_INSTRUCTION_ERROR);
+    PANIC("vmlaunch failed: error code %d", error_code);
+}
+
+
+void init_vmx_all_cpus(kheap_metadata_t *kheap, cpu_state_t *state) {
+    enable_x2apic();
+    cpu_shared_data_t *shared_data = state->cpu_data->shared_data;
+    for (size_t index = 0; index < shared_data->cpu_count; index++) {
+        size_t cpu_id = shared_data->cpu_states[index]->cpu_data->cpu_id;
+        if (cpu_id != state->cpu_data->cpu_id) {
+            init_vmx_on_cpu(kheap, shared_data->cpu_states[index]);
+        }
+    }
+    init_vmx_current_cpu(kheap, state);
+}
+
+
+static void init_vmx_current_cpu_wrapper(void) {
+    init_vmx_current_cpu(g_kheap, g_state);
+}
+
+
+void init_vmx_on_cpu(kheap_metadata_t *kheap, cpu_state_t *state) {
+    g_kheap = kheap;
+    g_state = state;
+    x2apic_activate_cpu(state->cpu_data->cpu_id, init_vmx_current_cpu_wrapper);
+}
+
+
+void init_vmx_current_cpu(kheap_metadata_t *kheap, cpu_state_t *state)
 {
-    INFO("entering vmx");
+    INFO("init vmx on cpu: %d", state->cpu_data->cpu_id);
 
     memset(state->cpu_data->vmcs, 0, sizeof(state->cpu_data->vmcs));
     *(uint32_t *)state->cpu_data->vmcs = rdmsr(MSR_IA32_VMX_BASIC);
@@ -76,12 +115,6 @@ void enter_vmx(kheap_metadata_t *kheap, cpu_state_t *state)
 
     configure_vmcs(state);
     DEBUG("vmcs configured");
-
-    __vmlaunch_handler();
-
-    // an error occured
-    uint64_t error_code = vmread(VMCS_VM_INSTRUCTION_ERROR);
-    PANIC("vmlaunch failed: error code %d", error_code);
 }
 
 
