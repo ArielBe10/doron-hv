@@ -33,6 +33,7 @@
 
 extern void __vmexit_handler(void);
 extern void __vmlaunch_handler(void);
+extern void vm_guest_main(void);
 
 
 typedef enum {
@@ -133,7 +134,7 @@ void configure_vmcs(cpu_state_t *state) {
     vmwrite(VMCS_GUEST_CR4, readcr4());
     vmwrite(VMCS_GUEST_DR7, readdr7());
     vmwrite(VMCS_GUEST_RSP, 0);  // will be changed to current value of rsp in vmm/vmm.asm
-    vmwrite(VMCS_GUEST_RIP, (size_t)vmenter_handler);
+    vmwrite(VMCS_GUEST_RIP, (size_t)vm_guest_main);
     vmwrite(VMCS_GUEST_RFLAGS, (readflags() & RFLAGS_NON_RESERVED0) | RFLAGS_RESERVED1);
 
     vmwrite(VMCS_GUEST_CS_SELECTOR, get_cs());
@@ -306,19 +307,4 @@ void vmexit_handler(void) {
         PANIC("error while handling vmexit: %d", status);
     }
     INFO("VMRESUME");
-}
-
-
-void vmenter_handler(void) {
-    INFO("VMENTER");
-
-    e820_mmap_t mmap;
-    get_e820_mmap(&mmap);
-    DEBUG("fake mmap:");
-    print_e820_mmap(&mmap);
-
-    INFO("BOOT");
-    os_entry();
-
-    PANIC("FINISHED VMENTER");
 }

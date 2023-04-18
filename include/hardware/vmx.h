@@ -79,3 +79,13 @@ static inline int vmptrld(void *vmcs_address)
         return 2;
     return 0;
 }
+
+typedef struct {
+    uint64_t eptp;
+    uint64_t zero;
+} invept_descriptor_t;
+
+static inline void invept(uint64_t type, const invept_descriptor_t *descriptor)
+{
+	asm volatile("invept %1, %0" :: "r"(type), "m"(descriptor));
+}

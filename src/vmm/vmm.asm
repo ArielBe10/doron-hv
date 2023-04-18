@@ -2,12 +2,15 @@
 %define VMCS_GUEST_RSP 0x0000681c
 %define VMCS_GUEST_RIP 0x0000681e
 
+%define VMCALL_REASON_INIT 0x1234
+
 
 [bits 64]
 section .text
 
 global __vmexit_handler
 global __vmlaunch_handler
+global __vmcall_init
 extern vmexit_handler
 
 
@@ -72,3 +75,9 @@ __vmexit_handler:
     mov r15, [fs:0x70]
 
     vmresume
+
+
+__vmcall_init:
+    mov rax, VMCALL_REASON_INIT
+    vmcall
+    ret

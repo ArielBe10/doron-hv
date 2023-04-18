@@ -142,6 +142,13 @@ static inline uint16_t get_gs(void)
     return gs;
 }
 
+static inline uint64_t get_rsp(void)
+{
+    uint64_t rsp;
+    asm volatile("mov %%rsp, %0": "=r"(rsp));
+    return rsp;
+}
+
 typedef struct
 {
     uint16_t limit;

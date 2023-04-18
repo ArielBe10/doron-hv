@@ -11,4 +11,3 @@ void enter_vmx(void);
 
 void configure_vmcs(cpu_state_t *state);
 void vmexit_handler(void);
-void vmenter_handler(void);

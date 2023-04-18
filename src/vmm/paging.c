@@ -1,5 +1,7 @@
 #include "vmm/paging.h"
 #include "lib/logging.h"
+#include "hardware/vmx.h"
+#include "hardware/vmcs.h"
 
 
 void create_paging_tables(paging_tables_t *paging_tables) {
@@ -46,6 +48,8 @@ void update_ept_access_rights(ept_paging_tables_t *ept_paging_tables, size_t sta
     ASSERT(start % PAGE_SIZE == 0);
     ASSERT(length % PAGE_SIZE == 0);
     ASSERT(access_rights <= 7);
+
+    DEBUG("updating ept access rights in range 0x%p-0x%p to %x", start, start + length, access_rights);
     
     size_t page_index = start / PAGE_SIZE;
     for (size_t i = 0; i < length / PAGE_SIZE; i++) {
@@ -53,4 +57,9 @@ void update_ept_access_rights(ept_paging_tables_t *ept_paging_tables, size_t sta
         ept_paging_tables->ept_page_tables[page_index] |= access_rights;  // grant desired rights
         page_index++;
     }
+
+    invept_descriptor_t invept_descriptor;
+    invept_descriptor.zero = 0;
+    invept_descriptor.eptp = ept_paging_tables->eptp;
+    invept(2, &invept_descriptor);
 }
