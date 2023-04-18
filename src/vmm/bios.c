@@ -4,6 +4,7 @@
 
 #define E820_MMAP_OUTPUT_ADDRESS 0x1000 // match MMAP_OUTPUT_ADDRESS in src/bios/mmap.asm
 #define DAP_ADDRESS 0x1200              // match DAP_ADDRESS in src/bios/read_disk.asm
+#define DRIVE_NUMBER_ADDRESS 0x6000     // match DRIVE_NUMBER_ADDRESS in src/bios/read_disk.asm
 
 extern void real_mode_code_start_offset(void);
 extern void real_mode_code_end_offset(void);
@@ -11,6 +12,8 @@ extern void call_real_mode_function_wrapper(void *);
 
 extern void bios_mmap(void);
 extern void bios_read_disk(void);
+extern void __os_entry(void);
+
 
 void init_bios(void)
 {
@@ -42,9 +45,15 @@ void print_e820_mmap(const e820_mmap_t *mmap)
     }
 }
 
-void read_disk(bios_dap_t *dap)
+void read_disk(bios_dap_t *dap, uint8_t drive_number)
 {
     init_bios();
     memcpy((void *)DAP_ADDRESS, dap, sizeof(bios_dap_t));
+    *(uint8_t*)DRIVE_NUMBER_ADDRESS = drive_number;
     call_real_mode_function_wrapper(bios_read_disk);
+}
+
+void os_entry(void) {
+    init_bios();
+    call_real_mode_function_wrapper(__os_entry);
 }

@@ -317,5 +317,8 @@ void vmenter_handler(void) {
     DEBUG("fake mmap:");
     print_e820_mmap(&mmap);
 
+    INFO("BOOT");
+    os_entry();
+
     PANIC("FINISHED VMENTER");
 }

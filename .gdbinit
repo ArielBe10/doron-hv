@@ -8,4 +8,5 @@ x/4i $rip
 end
 
 hb _start
+hb *0x7c00
 c

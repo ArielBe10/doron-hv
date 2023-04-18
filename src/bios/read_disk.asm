@@ -1,11 +1,11 @@
 %define DAP_ADDRESS 0x1200
-%define DISK_DRIVE_NUMBER 0x80  ; first harddisk
+%define DRIVE_NUMBER_ADDRESS 0x6000
 
 [bits 16]
 bios_read_disk:
 	mov si, DAP_ADDRESS	; address of "disk address packet"
 	mov ah, 0x42		; read disk
-	mov dl, DISK_DRIVE_NUMBER
+	mov dl, [DRIVE_NUMBER_ADDRESS]
 	int 0x13
 	jc .error
 

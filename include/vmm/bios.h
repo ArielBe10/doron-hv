@@ -33,4 +33,5 @@ typedef struct
 void init_bios(void);
 void get_e820_mmap(e820_mmap_t *mmap_output);
 void print_e820_mmap(const e820_mmap_t *mmap);
-void read_disk(bios_dap_t *dap);
+void read_disk(bios_dap_t *dap, uint8_t drive_number);
+void os_entry(void);

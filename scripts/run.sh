@@ -3,14 +3,21 @@
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"/..
 
 IMAGE="${PROJECT_DIR}/build/hypervisor.iso"
-HARD_DISK="${PROJECT_DIR}/build/harddisk.hd"
+OS_IMAGE="${PROJECT_DIR}/windows/Win10_22H2_English_x64.iso"
 LOGFILE="${PROJECT_DIR}/hypervisor.log"
+DISK="${PROJECT_DIR}/windows/win10.img"
+
 
 qemu-system-x86_64 \
         -enable-kvm -cpu host -smp cores=4 \
-        -m 1G \
-        -drive file="$IMAGE",index=1,media=cdrom \
-        -drive file="$HARD_DISK",index=0,media=disk \
-        -chardev stdio,id=char0,logfile="$LOGFILE",signal=off \
+        -m 3G \
+        -monitor vc \
+        -name "Windows" \
+        -boot d \
+        -chardev stdio,id=char0,logfile="$LOGFILE" \
         -serial chardev:char0 \
-        -no-reboot
+        -drive file="$DISK" \
+        -drive file="$IMAGE",media=cdrom \
+        -no-reboot 
+        # -drive file="$OS_IMAGE",media=cdrom,index=2
+        # -net nic -net user,hostname=windowsvm \

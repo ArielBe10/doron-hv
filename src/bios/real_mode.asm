@@ -28,5 +28,6 @@ real_mode_code_start_offset:
 %include "src/bios/mmap.asm"
 %include "src/bios/bios_print.asm"
 %include "src/bios/read_disk.asm"
+%include "src/vmm/bootloader.asm"
 
 real_mode_code_end_offset:
